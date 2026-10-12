@@ -249,6 +249,55 @@ class Edith:
         except Exception as e:
             return f"❌ Não achei a tarefa {id_tarefa}. ({e})"
 
+    def acao_remover_compromisso(self, termo: str) -> str:
+        """Remove/cancela compromisso por id ou trecho do título. Retorna confirmação."""
+        import json as _json
+        termo = (termo or "").strip()
+        if not termo:
+            return "Qual compromisso devo tirar? Diga o nome ou o número (ex: 'tire reunião com cliente')."
+        try:
+            todos = agenda_mod.read_compromissos()
+        except Exception as e:
+            return f"❌ Não consegui ler a agenda. ({e})"
+        if not todos:
+            return "Sua agenda já está vazia, senhor. Nada para tirar."
+        # por id
+        m = re.search(r'#?(\d{1,3})', termo)
+        alvo = None
+        if m and len(termo.strip()) <= 5:
+            for c in todos:
+                if c.get('id') == int(m.group(1)):
+                    alvo = c
+                    break
+            if not alvo:
+                return f"❌ Não achei compromisso #{m.group(1)}."
+        else:
+            stop = {"o", "a", "os", "as", "um", "uma", "de", "do", "da", "dos", "das",
+                    "com", "para", "pra", "tire", "tira", "tirar", "remove", "remover",
+                    "cancele", "cancelar", "exclua", "excluir", "apague", "apagar",
+                    "desmarque", "desmarcar", "reunião", "reuniao", "compromisso",
+                    "da", "minha", "agenda", "por", "favor", "o", "a"}
+            palavras = [w for w in re.findall(r'[a-zà-ú0-9]+', termo.lower()) if w not in stop]
+            if not palavras:
+                palavras = re.findall(r'[a-zà-ú0-9]+', termo.lower())
+            def score(c):
+                t = (c.get('titulo') or '').lower()
+                return sum(1 for w in palavras if w in t)
+            cands = sorted(todos, key=score, reverse=True)
+            if not cands or score(cands[0]) == 0:
+                return (f"❌ Não achei '{termo}' na agenda. "
+                        "Diga 'agenda' que eu listo os compromissos.")
+            alvo = cands[0]
+        restantes = [c for c in todos if c.get('id') != alvo.get('id')]
+        try:
+            with open(agenda_mod.LOG_FILE, 'w') as f:
+                for c in restantes:
+                    f.write(_json.dumps(c, ensure_ascii=False) + '\n')
+        except Exception as e:
+            return f"❌ Não consegui remover. ({e})"
+        return (f"Pronto, senhor. Tirei '{alvo.get('titulo')}' "
+                f"({alvo.get('data')}{(' às ' + alvo['hora']) if alvo.get('hora') else ''}) da agenda.")
+
     def acao_peso(self, kg: float) -> str:
         return saude_mod.registrar_peso(float(kg))
 
@@ -281,31 +330,41 @@ class Edith:
                 return "O que guardo na memória:\n" + "\n".join(
                     f"• {m.get('ts','')[:16].replace('T',' ')} — {m.get('texto','')}" for m in mems)
         try:
-            resp = self._chat_with_ai(msg) if API_KEY else self._smart_response(msg)
-        except Exception as e:
-            resp = f"Erro na IA: {e}"
+            local = self._smart_response(msg)
+            if not local.startswith("Estou aqui para ajudar"):
+                resp = local
+            else:
+                resp = self._chat_with_ai(msg)
+                if resp.startswith("Estou aqui para ajudar"):
+                    resp = local
+        except Exception:
+            resp = self._smart_response(msg)
         if msg:
             self.registrar_memoria("conversa", msg, {"resposta": (resp or "")[:500]})
         return resp
 
     def _chat_with_ai(self, message: str) -> str:
+        """Responde via modelo gratuito (Pollinations, sem chave)."""
         import requests
         d = self.get_dashboard()
         ctx = (f"Data: {d['tempo']}. Compromissos hoje: {len(d['agenda']['hoje'])}. "
                f"Produtividade: {d['produtividade']['percentual']}%. "
                f"Peso: {d['saude']['peso_atual']}kg. Estudo semana: {d['estudos']['horas_semana']}h.")
-        r = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"},
-            json={"model": "anthropic/claude-3.5-haiku",
-                  "messages": [
-                      {"role": "system", "content": "Você é Edith, assistente pessoal do Alencar. Responda útil e concisa em pt-BR."},
-                      {"role": "user", "content": f"{ctx}\n\nUsuário: {message}"}],
-                  "max_tokens": 500, "temperature": 0.7},
-            timeout=30)
-        if r.status_code == 200:
-            return r.json()["choices"][0]["message"]["content"]
-        return "Desculpe, não consegui processar sua mensagem."
+        try:
+            r = requests.post(
+                "https://text.pollinations.ai/openai",
+                headers={"Content-Type": "application/json"},
+                json={"model": "openai",
+                      "messages": [
+                          {"role": "system", "content": "Você é Edith, assistente pessoal do Alencar. Responda útil e concisa em pt-BR, sem emojis na fala."},
+                          {"role": "user", "content": f"{ctx}\n\nUsuário: {message}"}],
+                      "max_tokens": 500, "temperature": 0.7},
+                timeout=40)
+            if r.status_code == 200:
+                return r.json()["choices"][0]["message"]["content"]
+        except Exception:
+            pass
+        return self._smart_response(message)
 
     def _smart_response(self, message: str) -> str:
         """Responde com dados reais e executa ações por intenção."""
@@ -314,6 +373,10 @@ class Edith:
         d = self.get_dashboard()
 
         # --- AÇÕES: agenda ---
+        if re.search(r'\b(tire|tira|tirar|remove|remover|remova|cancele|cancelar|cancela|exclua|excluir|exclui|apague|apagar|apaga|desmarque|desmarcar|desmarca)\b', low):
+            termo = re.sub(r'(?i)\b(tire|tira|tirar|remove|remover|remova|cancele|cancelar|cancela|exclua|excluir|exclui|apague|apagar|apaga|desmarque|desmarcar|desmarca|o|a|da|minha|agenda|compromisso|por favor)\b', ' ', msg)
+            termo = re.sub(r'\s+', ' ', termo).strip(' -,.')
+            return self.acao_remover_compromisso(termo or msg)
         if re.search(r'\b(agendar|agende|adicionar compromisso|novo compromisso|marcar compromisso)\b', low):
             return self._intent_agendar(msg, low)
         m = re.search(r'\b(concluir|marcar|feita|feito|pronta|pronto)\b.*?\b(?:tarefa\s*)?(\d{1,2})\b', low)
