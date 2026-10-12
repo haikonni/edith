@@ -65,6 +65,50 @@ class Edith:
         t = re.sub(r'\n{3,}', '\n\n', t)
         return unicodedata.normalize('NFC', t).strip()
 
+    @staticmethod
+    def texto_para_fala(texto: str) -> str:
+        """Normaliza o texto para soar natural na voz: números/tempos por
+        extenso, pausas, abreviações expandidas."""
+        from num2words import num2words
+        MESES = {"01": "janeiro", "02": "fevereiro", "03": "março", "04": "abril",
+                 "05": "maio", "06": "junho", "07": "julho", "08": "agosto",
+                 "09": "setembro", "10": "outubro", "11": "novembro", "12": "dezembro"}
+        t = Edith.limpar_fala(texto)
+        t = t.replace("•", ", ").replace(";", ", ")
+        t = t.replace("\n", ". ")
+        t = re.sub(r'(\d)([A-Za-z°])', r'\1 \2', t)  # "74kg" -> "74 kg"
+        t = re.sub(r'(\d{4})-(\d{2})-(\d{2})',
+                   lambda m: f"dia {num2words(int(m.group(3)), lang='pt_BR')} de "
+                             f"{MESES.get(m.group(2), m.group(2))} de "
+                             f"{num2words(int(m.group(1)), lang='pt_BR')}", t)
+        t = re.sub(r'\b(\d{1,2}):(\d{2})\b',
+                   lambda m: (num2words(int(m.group(1)), lang='pt_BR') + ' horas'
+                              + ('' if int(m.group(2)) == 0 else ' e ' + num2words(int(m.group(2)), lang='pt_BR'))), t)
+        t = re.sub(r'\b(\d+)\.0+\b', lambda m: num2words(int(m.group(1)), lang='pt_BR'), t)
+        t = re.sub(r'\b(\d+\.\d+)\s*h\b',
+                   lambda m: num2words(float(m.group(1)), lang='pt_BR') + ' horas', t)
+        t = re.sub(r'\b(\d+)[.](\d+)',
+                   lambda m: num2words(int(m.group(1)), lang='pt_BR') + ' vírgula ' + ' '.join(num2words(int(d), lang='pt_BR') for d in m.group(2)), t)
+        t = t.replace(":", ", ")
+        t = re.sub(r'(\d+)\s*%', lambda m: num2words(int(m.group(1)), lang='pt_BR') + ' por cento', t)
+        t = re.sub(r'\b(\d+)\s*°?\s*C\b',
+                   lambda m: num2words(int(m.group(1)), lang='pt_BR') + ' graus', t)
+        t = re.sub(r'\b(\d+)\s*kg\b', lambda m: num2words(int(m.group(1)), lang='pt_BR') + ' quilos', t)
+        t = re.sub(r'\b(\d+)\s*kcal\b', lambda m: num2words(int(m.group(1)), lang='pt_BR') + ' calorias', t)
+        t = re.sub(r'\b(\d+)\s*h\b', lambda m: num2words(int(m.group(1)), lang='pt_BR') + ' horas', t)
+        t = re.sub(r'\b(\d+)\s*min\b', lambda m: num2words(int(m.group(1)), lang='pt_BR') + ' minutos', t)
+        t = re.sub(r'\b(\w+)centos calorias', r'\1centas calorias', t)  # "oitocentos" -> "oitocentas"
+        t = re.sub(r'\b(\d{1,3})\b', lambda m: num2words(int(m.group(1)), lang='pt_BR'), t)
+        t = t.replace("dois horas", "duas horas")
+        for ab, ext in (('Sr.', 'senhor'), ('Sra.', 'senhora'), ('Dr.', 'doutor'),
+                        ('Dra.', 'doutora'), ('ex.', 'por exemplo'), ('nº', 'número'),
+                        ('ENEM', 'Enem'), ('IA', 'I A')):
+            t = t.replace(ab, ext)
+        t = re.sub(r'\s{2,}', ' ', t)
+        t = re.sub(r'\.{2,}', '.', t)
+        t = re.sub(r',\s*,', ',', t)
+        return t.strip()
+
     def registrar_memoria(self, tipo: str, texto: str, extra: Optional[Dict] = None) -> None:
         try:
             reg = {"ts": datetime.now().isoformat(timespec="seconds"),
@@ -308,10 +352,17 @@ class Edith:
 
         # --- CONSULTAS (dados reais) ---
         if re.search(r'\b(olá|ola|oi|opa|bom dia|boa tarde|boa noite|e aí|e ai)\b', low) and len(low) < 25:
-            return ("Olá Alencar! Sou a Edith. 👋\n"
-                    f"Hoje você tem {len(d['agenda']['hoje'])} compromisso(s), "
-                    f"{d['produtividade']['percentual']}% das tarefas feitas e "
-                    f"{d['estudos']['horas_semana']}h de estudo na semana. O que vamos fazer?")
+            n_c = len(d['agenda']['hoje'])
+            pct = d['produtividade']['percentual']
+            hs = d['estudos']['horas_semana']
+            if n_c == 0:
+                ag = "Sua agenda está livre hoje"
+            elif n_c == 1:
+                ag = "Você tem um compromisso hoje"
+            else:
+                ag = f"Você tem {n_c} compromissos hoje"
+            return (f"Olá, senhor. {ag}, {pct} por cento das tarefas concluídas "
+                    f"e {hs} horas de estudo na semana. No que posso ajudar?")
         if re.search(r'\bagenda\b|\bcompromisso', low):
             return self._resp_agenda(d)
         if re.search(r'\bpeso\b|\bsaúde\b|\bsaude\b|\btreino\b|\bkcal\b|\bcomi\b', low):
@@ -363,11 +414,12 @@ class Edith:
         hoje = d["agenda"]["hoje"]
         prox = d["agenda"]["proximos"]
         if not hoje and not prox:
-            return "📅 Agenda livre! Nenhum compromisso nos próximos 7 dias. Quer agendar algo?"
+            return "Agenda livre, senhor. Nenhum compromisso nos próximos sete dias. Deseja agendar algo?"
         out = ""
         if hoje:
-            out += f"📅 Hoje ({len(hoje)}):\n" + "\n".join(
-                f"• {c['hora'] or '--:--'} — {c['titulo']}" for c in hoje)
+            n = len(hoje)
+            out += f"Hoje você tem {'um compromisso' if n == 1 else f'{n} compromissos'}:\n" + "\n".join(
+                f"• {c['hora'] or 'sem hora'} — {c['titulo']}" for c in hoje)
         if prox:
             out += ("\n" if out else "") + "\n📆 Próximos:\n" + "\n".join(
                 f"• {c['data'][5:][::-1].replace('-', '/') if False else c['data']} {c['hora'] or ''} — {c['titulo']}".strip()

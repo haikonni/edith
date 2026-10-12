@@ -54,7 +54,7 @@ def api_falar():
     texto = (data.get('texto') or '').strip()
     if not texto:
         return err("VALIDATION_ERROR", "Campo 'texto' é obrigatório.", 422)
-    texto = Edith.limpar_fala(texto)
+    texto = Edith.texto_para_fala(texto)
     if not texto:
         return err("VALIDATION_ERROR", "Texto vazio após limpeza.", 422)
     if len(texto) > 1000:
@@ -64,7 +64,7 @@ def api_falar():
         import edge_tts
         async def _gen():
             c = edge_tts.Communicate(texto, voice="pt-BR-FranciscaNeural",
-                                     rate="+5%")
+                                     rate="-5%")
             buf = bytearray()
             async for chunk in c.stream():
                 if chunk["type"] == "audio":
