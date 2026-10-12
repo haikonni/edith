@@ -7,7 +7,7 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
-DATA_DIR = Path(os.environ.get("EDITH_DATA_DIR", str(Path.home() / "Evolution" / "Jarvis" / "Agenda")))
+DATA_DIR = Path(os.environ.get("EDITH_DATA_DIR", str(Path.home() / "Evolution"))) / "Jarvis" / "Agenda"
 LOG_FILE = DATA_DIR / "compromissos.jsonl"
 CALENDAR_FILE = DATA_DIR / "calendario.json"
 
@@ -48,12 +48,10 @@ def save_calendar(calendar):
         json.dump(calendar, f, indent=2, ensure_ascii=False)
 
 def send_telegram(chat_id, message):
-    if not os.environ.get("TELEGRAM_BOT_TOKEN"):
-        return False
     import subprocess
     cmd = [
         "curl", "-s", "-X", "POST",
-        "https://api.telegram.org/bot" + os.environ.get("TELEGRAM_BOT_TOKEN", "token") + "/sendMessage",
+        "https://api.telegram.org/bot[REDACTED]/sendMessage",
         "-d", f"chat_id={chat_id}",
         "-d", f"text={message}",
         "-d", "parse_mode=Markdown"

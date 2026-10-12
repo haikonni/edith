@@ -370,6 +370,46 @@
                 position: static;
             }
         }
+
+        /* Mobile-first: celular */
+        @media (max-width: 640px) {
+            .header {
+                padding: 0.75rem 1rem;
+            }
+            .logo h1 {
+                font-size: 1.1rem;
+            }
+            .datetime .time {
+                font-size: 1.2rem;
+            }
+            .main {
+                padding: 1rem;
+                gap: 1rem;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .stat-value {
+                font-size: 1.5rem;
+            }
+            .card {
+                padding: 1rem;
+            }
+            .quick-actions {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+            .action-btn {
+                flex: 1 1 calc(50% - 0.25rem);
+                padding: 0.75rem;
+            }
+            .chat-messages {
+                max-height: 320px;
+            }
+            .chat-input input {
+                font-size: 16px; /* evita zoom no iOS */
+            }
+        }
         
         /* Loading animation */
         .typing {
@@ -437,9 +477,9 @@
                         <span class="icon">💪</span>
                         <span class="label">Saúde</span>
                     </button>
-                    <button class="action-btn" onclick="edithChat('Traga notícias de tecnologia')">
-                        <span class="icon">📰</span>
-                        <span class="label">Notícias</span>
+                    <button class="action-btn" onclick="edithChat('agendar correr amanhã 08:30')">
+                        <span class="icon">➕</span>
+                        <span class="label">Agendar</span>
                     </button>
                 </div>
             </div>
@@ -495,8 +535,8 @@
             
             <div class="card">
                 <div class="card-header">
-                    <div class="card-icon" style="background: rgba(123, 44, 191, 0.2);">📰</div>
-                    <span class="card-title">Últimas Notícias</span>
+                    <div class="card-icon" style="background: rgba(123, 44, 191, 0.2);">📆</div>
+                    <span class="card-title">Próximos Compromissos</span>
                 </div>
                 <div id="news-list">
                     <p style="color: var(--text-secondary); text-align: center; padding: 1rem;">
@@ -519,8 +559,9 @@
                     </div>
                 </div>
                 <div class="chat-input">
-                    <input type="text" id="chat-input" placeholder="Digite sua mensagem..." onkeypress="handleKeyPress(event)">
-                    <button onclick="sendMessage()">➤</button>
+                    <label for="chat-input" class="sr-only" style="position:absolute;left:-9999px;">Mensagem para Edith</label>
+                    <input type="text" id="chat-input" placeholder="Digite sua mensagem..." aria-label="Mensagem para Edith" onkeypress="handleKeyPress(event)">
+                    <button onclick="sendMessage()" aria-label="Enviar mensagem">➤</button>
                 </div>
             </div>
         </aside>
@@ -566,14 +607,16 @@
                     agendaList.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">Nenhum compromisso hoje</p>';
                 }
                 
-                // Update news
+                // Update próximos compromissos (era notícias — endpoint sempre vazio)
                 const newsList = document.getElementById('news-list');
-                if (data.noticias && data.noticias.length > 0) {
-                    newsList.innerHTML = data.noticias.slice(0, 3).map(n => `
+                if (data.agenda.proximos && data.agenda.proximos.length > 0) {
+                    newsList.innerHTML = data.agenda.proximos.slice(0, 5).map(n => `
                         <div style="padding: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                            <div style="font-size: 0.9rem;">${n.titulo}</div>
+                            <div style="font-size: 0.9rem;"><strong>${n.data}</strong> ${n.hora || ''} — ${n.titulo}</div>
                         </div>
                     `).join('');
+                } else {
+                    newsList.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 1rem;">Nada agendado — diga "agendar..." no chat</p>';
                 }
             } catch (e) {
                 console.error('Error loading dashboard:', e);

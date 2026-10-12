@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-DATA_DIR = Path(os.environ.get("EDITH_DATA_DIR", str(Path.home() / "Evolution" / "Jarvis" / "Saude")))
+DATA_DIR = Path(os.environ.get("EDITH_DATA_DIR", str(Path.home() / "Evolution"))) / "Jarvis" / "Saude"
 LOG_FILE = DATA_DIR / "log.jsonl"
 
 def ensure_dirs():
@@ -33,12 +33,10 @@ def write_entry(entry):
         f.write(json.dumps(entry, ensure_ascii=False) + '\n')
 
 def send_telegram(chat_id, message):
-    if not os.environ.get("TELEGRAM_BOT_TOKEN"):
-        return False
     import subprocess
     cmd = [
         "curl", "-s", "-X", "POST",
-        "https://api.telegram.org/bot" + os.environ.get("TELEGRAM_BOT_TOKEN", "token") + "/sendMessage",
+        "https://api.telegram.org/bot[REDACTED]/sendMessage",
         "-d", f"chat_id={chat_id}",
         "-d", f"text={message}",
         "-d", "parse_mode=Markdown"
