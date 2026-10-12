@@ -16,6 +16,11 @@ def err(code: str, message: str, status: int, details=None):
 
 @app.route('/')
 def index():
+    return render_template('jarvis.html')
+
+
+@app.route('/dashboard')
+def dashboard_classic():
     return render_template('index.html')
 
 
@@ -40,6 +45,60 @@ def api_chat():
         return err("VALIDATION_ERROR", "Campo 'message' é obrigatório.", 422,
                    [{"field": "message", "issue": "vazio ou ausente"}])
     return jsonify({'response': edith.chat(message)})
+
+
+@app.route('/v1/falar', methods=['POST'])
+def api_falar():
+    """Voz neural feminina (FranciscaNeural, pitch elevado). Retorna MP3."""
+    data = request.get_json(silent=True) or {}
+    texto = (data.get('texto') or '').strip()
+    if not texto:
+        return err("VALIDATION_ERROR", "Campo 'texto' é obrigatório.", 422)
+    texto = Edith.limpar_fala(texto)
+    if not texto:
+        return err("VALIDATION_ERROR", "Texto vazio após limpeza.", 422)
+    if len(texto) > 1000:
+        texto = texto[:1000]
+    try:
+        import asyncio
+        import edge_tts
+        async def _gen():
+            c = edge_tts.Communicate(texto, voice="pt-BR-FranciscaNeural",
+                                     rate="+5%", pitch="+25Hz")
+            buf = bytearray()
+            async for chunk in c.stream():
+                if chunk["type"] == "audio":
+                    buf += chunk["data"]
+            return bytes(buf)
+        audio = asyncio.run(_gen())
+    except Exception:
+        try:
+            import io
+            from gtts import gTTS
+            buf = io.BytesIO()
+            gTTS(texto, lang="pt-br").write_to_fp(buf)
+            audio = buf.getvalue()
+        except Exception as e:
+            return err("INTERNAL_ERROR", f"Falha ao gerar voz: {e}", 500)
+    if not audio:
+        return err("INTERNAL_ERROR", "Voz retornou áudio vazio.", 500)
+    from flask import Response
+    return Response(audio, mimetype="audio/mpeg")
+
+
+@app.route('/v1/memoria', methods=['GET', 'POST'])
+def api_memoria():
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        texto = (data.get('texto') or '').strip()
+        if not texto:
+            return err("VALIDATION_ERROR", "Campo 'texto' é obrigatório.", 422)
+        return jsonify({'result': edith.salvar_lembrete(texto)}), 201
+    try:
+        limite = int(request.args.get('limite', 20))
+    except (ValueError, TypeError):
+        limite = 20
+    return jsonify(edith.listar_memoria(min(limite, 100)))
 
 
 @app.route('/v1/agenda', methods=['GET', 'POST'])

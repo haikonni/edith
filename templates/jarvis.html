@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>EDITH — Jarvis</title>
+<style>
+:root{--bg:#0e0802;--cyan:#ff9e1f;--cyan-dim:#b05e10;--panel:rgba(50,34,8,.78);--line:rgba(255,158,31,.32);--txt:#fff0d0}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;min-height:100%;background:var(--bg);color:var(--txt);font-family:"Segoe UI",system-ui,Roboto,Arial,sans-serif}
+body{background-image:linear-gradient(rgba(255,158,31,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,158,31,.05) 1px,transparent 1px);background-size:44px 44px}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,10,.75) 100%)}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;font-size:12px;letter-spacing:.25em;color:var(--cyan)}
+.topbar .clock{letter-spacing:.1em}
+.status{text-align:center;margin-top:2px;font-size:13px;letter-spacing:.4em;color:var(--cyan);text-shadow:0 0 12px var(--cyan)}
+.status .wave{display:inline-block;margin-left:8px;letter-spacing:0}
+.core-wrap{position:relative;width:min(72vw,300px);height:min(72vw,300px);margin:14px auto 4px}
+.ring{position:absolute;inset:0;border-radius:50%;border:1px solid var(--line)}
+.r1{inset:6%;border-width:2px;box-shadow:0 0 24px rgba(255,158,31,.35),inset 0 0 30px rgba(255,158,31,.15);animation:spin 14s linear infinite}
+.r2{inset:16%;border-style:dashed;animation:spinR 22s linear infinite}
+.r3{inset:27%;animation:spin 30s linear infinite}
+.orb{position:absolute;inset:36%;border-radius:50%;background:radial-gradient(circle at 50% 40%,#fff8e1 0%,var(--cyan) 38%,#3d2706 78%);box-shadow:0 0 40px var(--cyan),0 0 120px rgba(255,158,31,.5);animation:pulse 3s ease-in-out infinite}
+body.talking .orb{animation:pulseFast .8s ease-in-out infinite}
+body.listening .r1{box-shadow:0 0 40px #7dffb2,inset 0 0 30px rgba(125,255,178,.3)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes spinR{to{transform:rotate(-360deg)}}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:.92}50%{transform:scale(1.06);opacity:1}}
+@keyframes pulseFast{0%,100%{transform:scale(1)}50%{transform:scale(1.14)}}
+.subtitle{min-height:52px;text-align:center;font-size:clamp(16px,4.5vw,22px);padding:6px 20px;text-shadow:0 0 14px rgba(255,158,31,.6)}
+.cards{display:flex;gap:10px;overflow-x:auto;padding:10px 14px;scroll-snap-type:x mandatory}
+.card{flex:0 0 min(78vw,300px);scroll-snap-align:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;backdrop-filter:blur(6px);box-shadow:0 0 18px rgba(255,158,31,.12)}
+.card h3{margin:0 0 6px;font-size:12px;letter-spacing:.25em;color:var(--cyan);font-weight:600}
+.card .big{font-size:20px;margin:2px 0}
+.card .small{font-size:13px;opacity:.85;line-height:1.45}
+.card ul{margin:6px 0 0;padding-left:18px;font-size:13px;line-height:1.5}
+.log{max-height:26vh;overflow-y:auto;margin:6px 14px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(24,16,4,.7);font-size:14px;line-height:1.5}
+.log .u{color:#fff}.log .e{color:var(--cyan)}
+.controls{position:sticky;bottom:0;display:flex;gap:8px;align-items:center;padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(transparent,rgba(20,12,2,.95) 30%)}
+#mic{width:58px;height:58px;border-radius:50%;border:2px solid var(--cyan);background:radial-gradient(circle at 50% 35%,rgba(255,158,31,.5),rgba(4,20,34,.9));color:#fff;font-size:24px;cursor:pointer;box-shadow:0 0 22px rgba(255,158,31,.5);flex-shrink:0}
+#mic.on{background:radial-gradient(circle at 50% 35%,#7dffb2,rgba(4,34,20,.9));border-color:#7dffb2}
+#msg{flex:1;padding:13px 14px;border-radius:24px;border:1px solid var(--line);background:rgba(32,22,6,.9);color:#fff;font-size:16px;outline:none}
+#send,#brief{padding:13px 14px;border-radius:24px;border:1px solid var(--cyan);background:rgba(255,158,31,.12);color:var(--cyan);font-size:14px;cursor:pointer;white-space:nowrap}
+#send:active,#brief:active,#mic:active{transform:scale(.96)}
+.foot{text-align:center;padding:0 0 14px;font-size:11px;opacity:.6;letter-spacing:.15em}
+.foot a{color:var(--cyan)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<div class="topbar"><span>EDITH</span><span class="clock" id="clock">--:--</span><span>E.D.I.T.H.</span></div>
+<div class="status" id="status">PRONTA</div>
+<div class="core-wrap" aria-hidden="true"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="orb"></div></div>
+<div class="subtitle" id="subtitle">Diga "bom dia" ou toque no microfone, senhor.</div>
+<div class="cards" id="cards"></div>
+<div class="log" id="log" aria-live="polite"></div>
+<div class="controls">
+<button id="mic" title="Falar">🎙</button>
+<label class="sr" for="msg">Mensagem</label>
+<input id="msg" placeholder="Fale ou digite…" autocomplete="off">
+<button id="send">➤</button>
+<button id="brief">☀ bom dia</button>
+</div>
+<div class="foot"><a href="/dashboard">DASHBOARD CLÁSSICO</a> · EDITH v2</div>
+<script>
+const $=id=>document.getElementById(id);
+const statusEl=$('status'),subEl=$('subtitle'),logEl=$('log'),cardsEl=$('cards');
+function setState(s,txt){document.body.classList.remove('talking','listening');statusEl.firstChild&&(statusEl.childNodes[0].textContent=s+' ');if(s==='FALANDO')document.body.classList.add('talking');if(s==='OUVINDO')document.body.classList.add('listening');if(txt!=null)subEl.textContent=txt;}
+statusEl.innerHTML='PRONTA <span class="wave"></span>';statusEl.childNodes[0].textContent='PRONTA ';
+setInterval(()=>{const d=new Date();$('clock').textContent=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');},1000);
+function addLog(who,text){const d=document.createElement('div');d.className=who==='Você'?'u':'e';d.innerHTML='<b>'+who+':</b> ';d.appendChild(document.createTextNode(text));logEl.appendChild(d);logEl.scrollTop=logEl.scrollHeight;}
+let neuralURL=null;
+async function speak(text){setState('FALANDO');
+  // limpa emojis/símbolos antes de falar (na tela o texto original continua)
+  const limpo=text.replace(/[\u{1F000}-\u{1FAFF}\u2600-\u27BF\u2B00-\u2BFF\uFE0F]/gu,'').replace(/[*_~`#>|]/g,'').trim()||text;
+  try{
+    if(neuralURL)URL.revokeObjectURL(neuralURL);
+    const r=await fetch('/v1/falar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({texto:limpo})});
+    if(r.ok){
+      const blob=await r.blob();neuralURL=URL.createObjectURL(blob);
+      const a=new Audio(neuralURL);a.onended=()=>setState('PRONTA');a.onerror=()=>falaNativa(limpo);
+      await a.play();return;
+    }
+  }catch(e){}
+  falaNativa(limpo);
+}
+function falaNativa(text){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='pt-BR';u.rate=1.02;u.onstart=()=>setState('FALANDO');u.onend=()=>setState('PRONTA');const v=speechSynthesis.getVoices().find(v=>v.lang&&v.lang.toLowerCase().startsWith('pt'));if(v)u.voice=v;speechSynthesis.speak(u);}catch(e){setState('PRONTA');}}
+function edithSay(text){addLog('Edith',text);subEl.textContent=text;speak(text);}
+async function apiChat(message){const r=await fetch('/v1/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message})});const j=await r.json().catch(()=>({}));return j.response||j.result||j.message||'(sem resposta)';}
+async function send(text){text=(text||$('msg').value||'').trim();if(!text)return;$('msg').value='';addLog('Você',text);subEl.textContent='…';setState('PENSANDO');try{const resp=await apiChat(text);edithSay(resp);}catch(e){edithSay('Falha de conexão com o núcleo. Tente de novo.');}}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+async function loadDash(){try{const r=await fetch('/v1/dashboard');const d=await r.json();renderCards(d);return d;}catch(e){cardsEl.innerHTML='<div class="card"><h3>SISTEMA</h3><div class="small">Núcleo offline. Verifique o servidor.</div></div>';return null;}}
+function renderCards(d){if(!d)return;const ag=d.agenda||{},pr=d.produtividade||{},sa=d.saude||{},es=d.estudos||{};
+const hoje=(ag.hoje||ag.compromissos_hoje||[]),prox=(ag.proximos||ag.proximos_compromissos||[]);
+const li=a=>(a||[]).slice(0,4).map(x=>'<li>'+esc(typeof x==='string'?x:(x.titulo||x.nome||x.texto||JSON.stringify(x)))+'</li>').join('');
+cardsEl.innerHTML=
+'<div class="card"><h3>AGENDA</h3><div class="big">'+(hoje.length?hoje.length+' hoje':'Livre hoje ✓')+'</div><div class="small">'+(hoje.length?'Compromissos de hoje:':'Nenhum compromisso agendado.')+'</div><ul>'+(li(hoje)||li(prox))+'</ul></div>'
++'<div class="card"><h3>ATENÇÃO</h3><div class="big">'+esc(pr.pendentes!=null?pr.pendentes+' pendentes':(pr.total!=null?pr.total+' tarefas':'—'))+'</div><div class="small">'+esc(pr.resumo||('Concluídas: '+(pr.concluidas!=null?pr.concluidas:0)))+'</div></div>'
++'<div class="card"><h3>CORPO</h3><div class="big">'+esc(sa.peso!=null?sa.peso+' kg':(sa.ultimo_peso||'—'))+'</div><div class="small">'+esc(sa.resumo||('Treinos: '+(sa.treinos_semana!=null?sa.treinos_semana:sa.treinos||0)))+'</div></div>'
++'<div class="card"><h3>ESTUDOS</h3><div class="big">'+esc(es.horas_semana!=null?es.horas_semana+'h':(es.total_horas||'—'))+'</div><div class="small">'+esc(es.resumo||('Foco: '+(es.materia_top||'geral')))+'</div></div>';}
+async function briefing(){setState('OUVINDO','Bom dia, senhor…');const d=await loadDash();const ag=d&&d.agenda||{};const hoje=(ag.hoje||ag.compromissos_hoje||[]);const pr=d&&d.produtividade||{};
+let fala='Bom dia, senhor. ';
+fala+=hoje.length?('A agenda de hoje tem '+hoje.length+' compromisso'+(hoje.length>1?'s':'')+'. '):'A agenda de hoje está livre, senhor. ';
+if(pr.pendentes)fala+='Há '+pr.pendentes+' tarefas pedindo sua atenção. ';
+fala+='Nada exige interromper sua manhã antes do briefing.';
+edithSay(fala);}
+let rec=null,listening=false;
+function micToggle(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){send(prompt('Digite o comando:')||'');return;}
+if(listening&&rec){rec.stop();return;}
+rec=new SR();rec.lang='pt-BR';rec.interimResults=false;listening=true;$('mic').classList.add('on');setState('OUVINDO','Ouvindo…');
+rec.onresult=e=>{const t=e.results[0][0].transcript;addLog('Você (voz)',t);send(t);};
+rec.onend=()=>{listening=false;$('mic').classList.remove('on');if(statusEl.textContent.indexOf('OUVINDO')===0)setState('PRONTA');};
+rec.onerror=rec.onend;try{rec.start();}catch(e){rec.onend();}}
+$('mic').onclick=micToggle;$('send').onclick=()=>send();$('brief').onclick=briefing;
+$('msg').addEventListener('keydown',e=>{if(e.key==='Enter')send();});
+loadDash();
+</script>
+</body>
+</html>

@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
-sys.path.insert(0, 'modules')
+sys.path.insert(0, '/opt/data/scripts')
 import jarvis_agenda as agenda_mod
 import jarvis_saude as saude_mod
 import jarvis_enem as enem_mod
@@ -26,7 +26,7 @@ for _m in (agenda_mod, saude_mod, enem_mod, prod_mod):
     if hasattr(_m, 'send_telegram'):
         setattr(_m, 'send_telegram', lambda *a, **k: False)
 
-DATA_DIR = Path(os.environ.get("EDITH_DATA_DIR", str(Path.home() / "Evolution"))) / "Edith"
+DATA_DIR = Path.home() / "Evolution" / "Edith"
 API_KEY = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("FIREWORKS_API_KEY") or ""
 
 MATERIAS_ALIAS = {
@@ -50,6 +50,51 @@ class Edith:
     def __init__(self):
         self.data_dir = DATA_DIR
         self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.memoria_file = self.data_dir / "memoria.jsonl"
+
+    # ---------- Memória (tudo que você manda fica salvo) ----------
+
+    @staticmethod
+    def limpar_fala(texto: str) -> str:
+        """Texto limpo para a voz: sem emojis/símbolos, sem citar formatação."""
+        import unicodedata
+        t = re.sub(r'[\U0001F000-\U0001FAFF\u2600-\u27BF\u2B00-\u2BFF\uFE0F]', '', texto)
+        t = re.sub(r'[*_~`#>|]', '', t)
+        t = re.sub(r'https?://\S+', 'link', t)
+        t = re.sub(r'[ \t]+', ' ', t)
+        t = re.sub(r'\n{3,}', '\n\n', t)
+        return unicodedata.normalize('NFC', t).strip()
+
+    def registrar_memoria(self, tipo: str, texto: str, extra: Optional[Dict] = None) -> None:
+        try:
+            reg = {"ts": datetime.now().isoformat(timespec="seconds"),
+                   "tipo": tipo, "texto": texto}
+            if extra:
+                reg.update(extra)
+            with open(self.memoria_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(reg, ensure_ascii=False) + "\n")
+        except Exception:
+            pass
+
+    def salvar_lembrete(self, texto: str) -> str:
+        texto = (texto or "").strip()
+        if not texto:
+            return "Nada para salvar na memória."
+        self.registrar_memoria("lembrete", texto)
+        return f"Salvo na minha memória: {texto}"
+
+    def listar_memoria(self, limite: int = 20) -> List[Dict]:
+        try:
+            linhas = self.memoria_file.read_text(encoding="utf-8").splitlines()
+        except Exception:
+            return []
+        out = []
+        for ln in linhas[-limite:]:
+            try:
+                out.append(json.loads(ln))
+            except Exception:
+                continue
+        return list(reversed(out))
 
     # ---------- Dashboard (leitura direta, sem subprocess) ----------
 
@@ -178,12 +223,26 @@ class Edith:
     # ---------- Chat ----------
 
     def chat(self, message: str, context: Optional[Dict] = None) -> str:
-        if API_KEY:
-            try:
-                return self._chat_with_ai(message)
-            except Exception as e:
-                return f"Erro na IA: {e}"
-        return self._smart_response(message)
+        msg = (message or "").strip()
+        if msg:
+            low = msg.lower()
+            m = re.search(r'(?:lembre(?:te)?(?:-se)?(?: de)?|guarde(?: na memória)?|anote|salve na memória|memorize)\s*[:\-]?\s*(.+)', low, re.S)
+            if m and m.group(1).strip():
+                original = re.sub(r'(?i)^(lembre(?:te)?(?:-se)?(?: de)?|guarde(?: na memória)?|anote|salve na memória|memorize)\s*[:\-]?\s*', '', msg).strip()
+                return self.salvar_lembrete(original)
+            if re.search(r'\b(minha memória|o que você lembra|o que voce lembra|lembranças|lembrancas)\b', low):
+                mems = self.listar_memoria(10)
+                if not mems:
+                    return "Minha memória está vazia por enquanto. Diga 'lembrete: ...' que eu guardo."
+                return "O que guardo na memória:\n" + "\n".join(
+                    f"• {m.get('ts','')[:16].replace('T',' ')} — {m.get('texto','')}" for m in mems)
+        try:
+            resp = self._chat_with_ai(msg) if API_KEY else self._smart_response(msg)
+        except Exception as e:
+            resp = f"Erro na IA: {e}"
+        if msg:
+            self.registrar_memoria("conversa", msg, {"resposta": (resp or "")[:500]})
+        return resp
 
     def _chat_with_ai(self, message: str) -> str:
         import requests
@@ -354,6 +413,11 @@ def main():
         print(json.dumps(edith.get_dashboard(), indent=2, ensure_ascii=False, default=str))
     elif cmd == "chat":
         print(edith.chat(" ".join(sys.argv[2:]) if len(sys.argv) > 2 else "oi"))
+    elif cmd == "memoria":
+        mems = edith.listar_memoria(20)
+        print(json.dumps(mems, indent=2, ensure_ascii=False))
+    elif cmd == "lembrete" and len(sys.argv) >= 3:
+        print(edith.salvar_lembrete(" ".join(sys.argv[2:])))
     elif cmd == "agenda":
         print(edith._resp_agenda(edith.get_dashboard()))
     elif cmd == "saude":
