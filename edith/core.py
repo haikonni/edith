@@ -29,6 +29,28 @@ for _m in (agenda_mod, saude_mod, enem_mod, prod_mod):
 DATA_DIR = Path.home() / "Evolution" / "Edith"
 API_KEY = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("FIREWORKS_API_KEY") or ""
 
+
+def _router_config():
+    """Lê base_url/api_key/modelo do config do Hermes (mesmo Gratuito). Sem logar segredo."""
+    base, key, model = "http://niner-router:20128/v1", "", "Gratuito"
+    try:
+        txt = Path("/opt/data/config.yaml").read_text()
+        m = re.search(r'base_url:\s*(\S+)', txt)
+        if m:
+            base = m.group(1).strip().strip("\"'")
+        m = re.search(r'^\s*api_key:\s*["\']?([^"\'\s#]+)', txt, re.M)
+        if m:
+            key = m.group(1).strip()
+        m = re.search(r'^\s*default:\s*(\S+)', txt, re.M)
+        if m:
+            model = m.group(1).strip().strip("\"'")
+    except Exception:
+        pass
+    return base.rstrip("/"), key, model
+
+
+ROUTER_BASE, ROUTER_KEY, ROUTER_MODEL = _router_config()
+
 MATERIAS_ALIAS = {
     "matemática": "matematica", "matematica": "matematica", "mat": "matematica",
     "português": "portugues", "portugues": "portuguesa", "port": "portugues",
@@ -344,20 +366,32 @@ class Edith:
         return resp
 
     def _chat_with_ai(self, message: str) -> str:
-        """Responde via modelo gratuito (Pollinations, sem chave)."""
+        """Responde via 9router (mesmo Gratuito do Hermes). Fallback: Pollinations."""
         import requests
         d = self.get_dashboard()
         ctx = (f"Data: {d['tempo']}. Compromissos hoje: {len(d['agenda']['hoje'])}. "
                f"Produtividade: {d['produtividade']['percentual']}%. "
                f"Peso: {d['saude']['peso_atual']}kg. Estudo semana: {d['estudos']['horas_semana']}h.")
+        msgs = [
+            {"role": "system", "content": "Você é Edith, assistente pessoal do Alencar. Responda útil e concisa em pt-BR, sem emojis na fala."},
+            {"role": "user", "content": f"{ctx}\n\nUsuário: {message}"}]
+        if ROUTER_KEY:
+            try:
+                r = requests.post(
+                    f"{ROUTER_BASE}/chat/completions",
+                    headers={"Content-Type": "application/json", "Authorization": f"Bearer {ROUTER_KEY}"},
+                    json={"model": ROUTER_MODEL, "messages": msgs,
+                          "max_tokens": 500, "temperature": 0.7},
+                    timeout=60)
+                if r.status_code == 200:
+                    return r.json()["choices"][0]["message"]["content"]
+            except Exception:
+                pass
         try:
             r = requests.post(
                 "https://text.pollinations.ai/openai",
                 headers={"Content-Type": "application/json"},
-                json={"model": "openai",
-                      "messages": [
-                          {"role": "system", "content": "Você é Edith, assistente pessoal do Alencar. Responda útil e concisa em pt-BR, sem emojis na fala."},
-                          {"role": "user", "content": f"{ctx}\n\nUsuário: {message}"}],
+                json={"model": "openai", "messages": msgs,
                       "max_tokens": 500, "temperature": 0.7},
                 timeout=40)
             if r.status_code == 200:
