@@ -49,7 +49,7 @@ def api_chat():
 
 @app.route('/v1/falar', methods=['POST'])
 def api_falar():
-    """Voz neural feminina (FranciscaNeural, pitch elevado). Retorna MP3."""
+    """Voz neural feminina (FranciscaNeural original). Retorna MP3."""
     data = request.get_json(silent=True) or {}
     texto = (data.get('texto') or '').strip()
     if not texto:
@@ -64,7 +64,7 @@ def api_falar():
         import edge_tts
         async def _gen():
             c = edge_tts.Communicate(texto, voice="pt-BR-FranciscaNeural",
-                                     rate="+5%", pitch="+25Hz")
+                                     rate="+5%")
             buf = bytearray()
             async for chunk in c.stream():
                 if chunk["type"] == "audio":
