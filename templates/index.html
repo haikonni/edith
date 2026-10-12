@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edith - Assistente Pessoal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a2e;
+            --accent: #00d4ff;
+            --accent-secondary: #7b2cbf;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --success: #00ff88;
+            --warning: #ffaa00;
+            --danger: #ff4757;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        /* Animated background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: 
+                radial-gradient(ellipse at 20% 20%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(123, 44, 191, 0.1) 0%, transparent 50%),
+                var(--bg-primary);
+        }
+        
+        /* Header */
+        .header {
+            background: var(--bg-secondary);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+            box-shadow: 0 4px 30px rgba(0, 212, 255, 0.1);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(0, 212, 255, 0.5); }
+            50% { transform: scale(1.05); box-shadow: 0 0 30px rgba(0, 212, 255, 0.8); }
+        }
+        
+        .logo h1 {
+            font-size: 1.5rem;
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
+        
+        .logo h1 span {
+            color: var(--accent);
+            font-weight: 600;
+        }
+        
+        .datetime {
+            text-align: right;
+            color: var(--text-secondary);
+        }
+        
+        .datetime .time {
+            font-size: 1.8rem;
+            font-weight: 300;
+            color: var(--accent);
+        }
+        
+        /* Main layout */
+        .main {
+            display: grid;
+            grid-template-columns: 280px 1fr 320px;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 212, 255, 0.15);
+        }
+        
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .card-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+        
+        .card-title {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .quick-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .action-btn {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            padding: 1rem;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transition: all 0.2s ease;
+        }
+        
+        .action-btn:hover {
+            background: rgba(0, 212, 255, 0.1);
+            border-color: var(--accent);
+        }
+        
+        .action-btn .icon {
+            font-size: 1.3rem;
+        }
+        
+        .action-btn .label {
+            flex: 1;
+            font-size: 0.9rem;
+        }
+        
+        /* Center content */
+        .center {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 0.25rem;
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .agenda-section {
+            flex: 1;
+        }
+        
+        .appointment {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 10px;
+            margin-bottom: 0.75rem;
+            border-left: 3px solid var(--accent);
+        }
+        
+        .appointment.time {
+            font-size: 0.85rem;
+            color: var(--accent);
+            font-weight: 500;
+            min-width: 60px;
+        }
+        
+        .appointment.title {
+            flex: 1;
+        }
+        
+        .appointment.cat {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 20px;
+            background: rgba(123, 44, 191, 0.3);
+            color: #b388ff;
+        }
+        
+        /* Right sidebar - Chat */
+        .chat-panel {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 140px);
+            position: sticky;
+            top: 1.5rem;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .message {
+            max-width: 85%;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        
+        .message.user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+            color: white;
+        }
+        
+        .message.edith {
+            align-self: flex-start;
+            background: var(--bg-secondary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .chat-input {
+            display: flex;
+            gap: 0.5rem;
+            padding: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .chat-input input {
+            flex: 1;
+            background: var(--bg-secondary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 25px;
+            outline: none;
+        }
+        
+        .chat-input input:focus {
+            border-color: var(--accent);
+        }
+        
+        .chat-input button {
+            background: var(--accent);
+            border: none;
+            color: var(--bg-primary);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: transform 0.2s ease;
+        }
+        
+        .chat-input button:hover {
+            transform: scale(1.1);
+        }
+        
+        /* Progress bar */
+        .progress-container {
+            margin-top: 1rem;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent-secondary));
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .main {
+                grid-template-columns: 1fr;
+            }
+            .sidebar, .chat-panel {
+                height: auto;
+            }
+            .chat-panel {
+                position: static;
+            }
+        }
+        
+        /* Loading animation */
+        .typing {
+            display: flex;
+            gap: 0.3rem;
+            padding: 0.75rem 1rem;
+            align-self: flex-start;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+        }
+        
+        .typing span {
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+        
+        .typing span:nth-child(1) { animation-delay: -0.32s; }
+        .typing span:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-animation"></div>
+    
+    <header class="header">
+        <div class="logo">
+            <div class="logo-icon">E</div>
+            <h1><span>Edith</span> Assistant</h1>
+        </div>
+        <div class="datetime">
+            <div class="time" id="clock">--:--</div>
+            <div id="date">--</div>
+        </div>
+    </header>
+    
+    <main class="main">
+        <!-- Left Sidebar -->
+        <aside class="sidebar">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon" style="background: rgba(0, 212, 255, 0.2);">⚡</div>
+                    <span class="card-title">Ações Rápidas</span>
+                </div>
+                <div class="quick-actions">
+                    <button class="action-btn" onclick="edithChat('Ver minha agenda de hoje')">
+                        <span class="icon">📅</span>
+                        <span class="label">Agenda de Hoje</span>
+                    </button>
+                    <button class="action-btn" onclick="edithChat('Como estou na produtividade?')">
+                        <span class="icon">✅</span>
+                        <span class="label">Produtividade</span>
+                    </button>
+                    <button class="action-btn" onclick="edithChat('Me dê um resumo dos meus estudos')">
+                        <span class="icon">📚</span>
+                        <span class="label">Estudos ENEM</span>
+                    </button>
+                    <button class="action-btn" onclick="edithChat('Qual minha saúde hoje?')">
+                        <span class="icon">💪</span>
+                        <span class="label">Saúde</span>
+                    </button>
+                    <button class="action-btn" onclick="edithChat('Traga notícias de tecnologia')">
+                        <span class="icon">📰</span>
+                        <span class="label">Notícias</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon" style="background: rgba(0, 255, 136, 0.2);">🎯</div>
+                    <span class="card-title">Meta Diária</span>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="daily-progress" style="width: 0%"></div>
+                    </div>
+                    <p style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.85rem;">
+                        <span id="progress-text">0%</span> completo
+                    </p>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Center Content -->
+        <section class="center">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-agenda">0</div>
+                    <div class="stat-label">Compromissos</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-tarefas">0%</div>
+                    <div class="stat-label">Tarefas</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-horas">0h</div>
+                    <div class="stat-label">Estudo</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-peso">--</div>
+                    <div class="stat-label">Peso (kg)</div>
+                </div>
+            </div>
+            
+            <div class="card agenda-section">
+                <div class="card-header">
+                    <div class="card-icon" style="background: rgba(0, 212, 255, 0.2);">📅</div>
+                    <span class="card-title">Agenda de Hoje</span>
+                </div>
+                <div id="agenda-list">
+                    <p style="color: var(--text-secondary); text-align: center; padding: 2rem;">
+                        Carregando agenda...
+                    </p>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon" style="background: rgba(123, 44, 191, 0.2);">📰</div>
+                    <span class="card-title">Últimas Notícias</span>
+                </div>
+                <div id="news-list">
+                    <p style="color: var(--text-secondary); text-align: center; padding: 1rem;">
+                        Buscando notícias...
+                    </p>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Right Sidebar - Chat -->
+        <aside class="chat-panel">
+            <div class="card" style="height: 100%; display: flex; flex-direction: column;">
+                <div class="card-header">
+                    <div class="card-icon" style="background: rgba(0, 212, 255, 0.2);">💬</div>
+                    <span class="card-title">Converse com Edith</span>
+                </div>
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message edith">
+                        Olá Alencar! Sou a Edith, sua assistente pessoal. Como posso ajudar você hoje?
+                    </div>
+                </div>
+                <div class="chat-input">
+                    <input type="text" id="chat-input" placeholder="Digite sua mensagem..." onkeypress="handleKeyPress(event)">
+                    <button onclick="sendMessage()">➤</button>
+                </div>
+            </div>
+        </aside>
+    </main>
+    
+    <script>
+        // Clock
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').textContent = now.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'});
+            document.getElementById('date').textContent = now.toLocaleDateString('pt-BR', {weekday: 'long', day: '2-digit', month: 'long'});
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+        
+        // Load dashboard data
+        async function loadDashboard() {
+            try {
+                const response = await fetch('/api/dashboard');
+                const data = await response.json();
+                
+                // Update stats
+                document.getElementById('stat-agenda').textContent = data.agenda.total_semana || 0;
+                document.getElementById('stat-tarefas').textContent = data.produtividade.percentual + '%';
+                document.getElementById('stat-horas').textContent = (data.estudos.horas_semana || 0) + 'h';
+                document.getElementById('stat-peso').textContent = data.saude.peso_atual || '--';
+                
+                // Update progress bar
+                document.getElementById('daily-progress').style.width = data.produtividade.percentual + '%';
+                document.getElementById('progress-text').textContent = data.produtividade.percentual + '%';
+                
+                // Update agenda
+                const agendaList = document.getElementById('agenda-list');
+                if (data.agenda.hoje && data.agenda.hoje.length > 0) {
+                    agendaList.innerHTML = data.agenda.hoje.map(a => `
+                        <div class="appointment">
+                            <span class="time">${a.hora}</span>
+                            <span class="title">${a.titulo}</span>
+                            <span class="cat">${a.categoria || 'Geral'}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    agendaList.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">Nenhum compromisso hoje</p>';
+                }
+                
+                // Update news
+                const newsList = document.getElementById('news-list');
+                if (data.noticias && data.noticias.length > 0) {
+                    newsList.innerHTML = data.noticias.slice(0, 3).map(n => `
+                        <div style="padding: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <div style="font-size: 0.9rem;">${n.titulo}</div>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error('Error loading dashboard:', e);
+            }
+        }
+        
+        // Chat functionality
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+        
+        function edithChat(message) {
+            document.getElementById('chat-input').value = message;
+            sendMessage();
+        }
+        
+        async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+            
+            // Add user message
+            addMessage(message, 'user');
+            input.value = '';
+            
+            // Show typing indicator
+            const typing = document.createElement('div');
+            typing.className = 'typing';
+            typing.innerHTML = '<span></span><span></span><span></span>';
+            document.getElementById('chat-messages').appendChild(typing);
+            scrollChat();
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+                
+                typing.remove();
+                
+                const data = await response.json();
+                addMessage(data.response, 'edith');
+            } catch (e) {
+                typing.remove();
+                addMessage('Desculpe, ocorreu um erro. Tente novamente.', 'edith');
+            }
+        }
+        
+        function addMessage(text, sender) {
+            const messages = document.getElementById('chat-messages');
+            const msg = document.createElement('div');
+            msg.className = `message ${sender}`;
+            msg.textContent = text;
+            messages.appendChild(msg);
+            scrollChat();
+        }
+        
+        function scrollChat() {
+            const messages = document.getElementById('chat-messages');
+            messages.scrollTop = messages.scrollHeight;
+        }
+        
+        // Initialize
+        loadDashboard();
+        setInterval(loadDashboard, 60000); // Refresh every minute
+    </script>
+</body>
+</html>
